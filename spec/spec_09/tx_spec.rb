@@ -69,13 +69,15 @@ describe 'Queue' do
       message_count(source_q).should == 1
       message_count(dest_q).should == 0
 
-      source_q.pop(:ack => true)
+      msg = source_q.pop(:ack => true)
       @default_exchange.publish("Test message", :key => dest_q.name)
+      source_q.ack
 
       @b.tx_rollback
 
-      # you have to reject the messages after the tx commit
-      source_q.reject
+      # you have to reject the messages after the commit if you acked them
+      # but you need the delivery tag
+      source_q.reject(:delivery_tag => msg[:delivery_details][:delivery_tag])
       @b.tx_commit
 
       message_count(source_q).should == 1
